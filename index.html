@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mikrotik Script Generator</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Mengatur font default */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb; /* Light mode default */
+        }
+
+        /* Dark mode body override via JS setting 'dark' class on html tag */
+        .dark body {
+            background-color: #1a202c; 
+        }
+
+        /* Menyesuaikan area skrip agar lebih mudah dibaca */
+        #scriptOutput {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: monospace;
+            min-height: 150px;
+            /* Default Light Mode */
+            background-color: #1f2937; 
+            color: #4ade80; 
+        }
+        
+        /* Style untuk Tombol Tab (Chrome-like) */
+        .tab-button {
+            padding: 10px 15px;
+            cursor: pointer;
+            font-weight: 600;
+            border-top-left-radius: 0.5rem; /* rounded-xl */
+            border-top-right-radius: 0.5rem;
+            border: 1px solid #e2e8f0;
+            border-bottom: none;
+            transition: all 0.2s;
+            margin-right: 4px;
+            background-color: #f1f5f9; /* Inactive color (Light) */
+            color: #1e293b;
+            z-index: 10;
+            flex-shrink: 0; 
+        }
+
+        .dark .tab-button {
+            background-color: #374151; /* Inactive color (Dark) */
+            color: #d1d5db;
+            border-color: #4b5563;
+        }
+
+        .tab-button.active {
+            background-color: white;
+            color: #0b93f6; /* Mikrotik blue for active text (Light) */
+            border-bottom-color: white; 
+            box-shadow: 0 -2px 4px -1px rgba(0, 0, 0, 0.05);
+            z-index: 20;
+        }
+        
+        .dark .tab-button.active {
+            background-color: #1f2937; /* Active color (Dark) */
+            color: #3b82f6;
+            border-bottom-color: #1f2937;
+        }
+
+        /* Container konten yang menyatu dengan tab aktif */
+        .tab-content-container {
+            border: 1px solid #e2e8f0;
+            border-radius: 0 0 0.5rem 0.5rem; 
+            padding: 1.5rem; 
+            background-color: white;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        .dark .tab-content-container {
+            border-color: #4b5563;
+            background-color: #1f2937;
+        }
+
+    </style>
+    <script>
+        tailwind.config = {
+            darkMode: 'class', // Enable dark mode based on 'dark' class on parent (html)
+            theme: {
+                extend: {
+                    colors: {
+                        'mikrotik-blue': '#0b93f6',
+                        'mikrotik-dark': '#1e293b',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="transition-colors duration-300">
+
+    <div class="max-w-4xl mx-auto bg-white dark:bg-gray-800 shadow-xl rounded-xl p-6 sm:p-10 border border-gray-100 dark:border-gray-700 transition-colors duration-300">
+        <header class="text-center mb-8 relative">
+            
+            <!-- THEME TOGGLE BUTTON -->
+            <button id="themeToggle" onclick="toggleTheme()" class="absolute right-0 top-0 p-2 rounded-full text-gray-700 dark:text-yellow-400 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200">
+                <!-- Sun Icon -->
+                <svg id="sunIcon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                </svg>
+                <!-- Moon Icon -->
+                <svg id="moonIcon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                </svg>
+            </button>
+            
+            <h1 class="text-3xl sm:text-4xl font-extrabold text-mikrotik-dark dark:text-gray-100 mb-2 transition-colors duration-300">
+                Mikrotik Script Generator
+            </h1>
+            <p class="text-gray-500 dark:text-gray-400 transition-colors duration-300">Pilih tab konfigurasi yang ingin Anda buat skripnya.</p>
+        </header>
+
+        <!-- TAB HEADERS (Horizontal Menu) -->
+        <div class="tab-headers flex overflow-x-auto -mb-px">
+            <button id="tab-basic-btn" onclick="showTab('basic')" class="tab-button active">
+                Dasar Jaringan
+            </button>
+            <button id="tab-queue-btn" onclick="showTab('queue')" class="tab-button">
+                Simple Queue (BW)
+            </button>
+            <button id="tab-firewall-btn" onclick="showTab('firewall')" class="tab-button">
+                Firewall & NAT
+            </button>
+            <button id="tab-loadbalance-btn" onclick="showTab('loadbalance')" class="tab-button">
+                Load Balance (PCC)
+            </button>
+            <button id="tab-ppp-btn" onclick="showTab('ppp')" class="tab-button">
+                PPPoE Server
+            </button>
+        </div>
+
+        <!-- TAB CONTENT CONTAINER -->
+        <div class="tab-content-container relative">
+
+            <!-- CONTENT 1: Pengaturan Dasar -->
+            <div id="content-basic" class="tab-content">
+                <h2 class="text-xl font-bold text-mikrotik-dark dark:text-gray-100 mb-4 border-b dark:border-gray-600 pb-2">Konfigurasi Jaringan Dasar</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                    <!-- WAN Interface and DHCP Client -->
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Interface WAN (Internet)</label>
+                        <input type="text" id="wanInterface" value="ether1" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-mikrotik-blue focus:border-mikrotik-blue bg-white dark:bg-gray-800 dark:text-gray-100" placeholder="e.g., ether1">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Interface yang terhubung ke Internet/ISP (misalnya: ether1).</p>
+                    </div>
+
+                    <!-- LAN Interface -->
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Interface LAN (Lokal)</label>
+                        <input type="text" id="lanInterface" value="ether2" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-mikrotik-blue focus:border-mikrotik-blue bg-white dark:bg-gray-800 dark:text-gray-100" placeholder="e.g., ether2">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Interface yang terhubung ke jaringan lokal (Switch/WiFi).</p>
+                    </div>
+
+                    <!-- LAN IP Address -->
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">IP Address LAN (dengan netmask)</label>
+                        <input type="text" id="lanIP" value="192.168.88.1/24" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-mikrotik-blue focus:border-mikrotik-blue bg-white dark:bg-gray-800 dark:text-gray-100" placeholder="e.g., 192.168.88.1/24">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">IP gateway untuk jaringan lokal Anda.</p>
+                    </div>
+
+                    <!-- DHCP Pool Range -->
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">DHCP Pool Range (Start-End)</label>
+                        <input type="text" id="dhcpPool" value="192.168.88.10-192.168.88.200" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-mikrotik-blue focus:border-mikrotik-blue bg-white dark:bg-gray-800 dark:text-gray-100" placeholder="e.g., 192.168.88.10-192.168.88.200">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Rentang IP yang akan diberikan ke klien lokal.</p>
+                    </div>
+                </div>
+
+                <button onclick="generateBasicScript()" class="mt-6 w-full bg-mikrotik-blue hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition duration-200 shadow-md hover:shadow-lg">
+                    Generate Skrip Pengaturan Dasar
+                </button>
+            </div>
+
+            <!-- CONTENT 2: Simple Queue (Hidden by default) -->
+            <div id="content-queue" class="tab-content hidden">
+                <h2 class="text-xl font-bold text-mikrotik-dark dark:text-gray-100 mb-4 border-b dark:border-gray-600 pb-2">Konfigurasi Simple Queue (Manajemen Bandwidth)</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                    <!-- Target Network/IP -->
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Target Address / Network</label>
+                        <input type="text" id="queueTarget" value="192.168.88.0/24" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-mikrotik-blue focus:border-mikrotik-blue bg-white dark:bg-gray-800 dark:text-gray-100" placeholder="e.g., 192.168.88.0/24">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Jaringan/IP yang akan dibatasi bandwidth-nya.</p>
+                    </div>
+
+                    <!-- Max Upload Limit -->
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Limit Upload Maksimum (Max Limit Upload)</label>
+                        <input type="text" id="queueMaxUpload" value="5M" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-mikrotik-blue focus:border-mikrotik-blue bg-white dark:bg-gray-800 dark:text-gray-100" placeholder="e.g., 5M (5 Mbps)">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Contoh: 10M, 512k.</p>
+                    </div>
+
+                    <!-- Max Download Limit -->
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Limit Download Maksimum (Max Limit Download)</label>
+                        <input type="text" id="queueMaxDownload" value="10M" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-mikrotik-blue focus:border-mikrotik-blue bg-white dark:bg-gray-800 dark:text-gray-100" placeholder="e.g., 10M (10 Mbps)">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Contoh: 10M, 512k.</p>
+                    </div>
+
+                    <!-- Queue Name -->
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nama Queue</label>
+                        <input type="text" id="queueName" value="BW-LOKAL" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-mikrotik-blue focus:border-mikrotik-blue bg-white dark:bg-gray-800 dark:text-gray-100" placeholder="e.g., BW-Klien">
+                    </div>
+
+                </div>
+
+                <button onclick="generateQueueScript()" class="mt-6 w-full bg-mikrotik-blue hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition duration-200 shadow-md hover:shadow-lg">
+                    Generate Skrip Simple Queue
+                </button>
+            </div>
+
+            <!-- CONTENT 3: Firewall & Port Forwarding (Hidden by default) -->
+            <div id="content-firewall" class="tab-content hidden">
+                <h2 class="text-xl font-bold text-mikrotik-dark dark:text-gray-100 mb-4 border-b dark:border-gray-600 pb-2">Firewall Keamanan Dasar & Akses Server</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Skrip ini akan menambahkan aturan keamanan dasar (Filter Input) dan Port Forwarding (Static NAT) untuk server lokal Anda.</p>
+                
+                <h3 class="text-lg font-semibold text-mikrotik-dark dark:text-gray-100 mb-3 mt-6">1. Aturan Keamanan Dasar (Filter Input)</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                    <!-- WAN Interface for Filtering -->
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Interface WAN (Untuk Filter)</label>
+                        <input type="text" id="firewallWanInterface" value="WAN-ISP" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-mikrotik-blue focus:border-mikrotik-blue bg-white dark:bg-gray-800 dark:text-gray-100" placeholder="e.g., WAN-ISP">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Gunakan nama Interface WAN yang sudah diubah namanya (default dari tab Dasar: WAN-ISP).</p>
+                    </div>
+                    
+                    <!-- Allowed Services to Router -->
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Service yang Diizinkan ke Router dari WAN (Port)</label>
+                        <input type="text" id="allowedServices" value="22,80,443" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-mikrotik-blue focus:border-mikrotik-blue bg-white dark:bg-gray-800 dark:text-gray-100" placeholder="e.g., 22 (SSH), 80 (HTTP), 443 (HTTPS)">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Port tujuan untuk koneksi ke router (WinBox, SSH, Webfig) dari internet. Kosongkan jika tidak ada.</p>
+                    </div>
+
+                </div>
+
+                <h3 class="text-lg font-semibold text-mikrotik-dark dark:text-gray-100 mb-3 mt-6">2. Port Forwarding (Static NAT)</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Internal Server IP -->
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">IP Server Lokal</label>
+                        <input type="text" id="serverIP" value="192.168.88.250" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-mikrotik-blue focus:border-mikrotik-blue bg-white dark:bg-gray-800 dark:text-gray-100" placeholder="e.g., 192.168.88.250">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">IP Address lokal dari server yang ingin diakses dari internet.</p>
+                    </div>
+
+                    <!-- External Port (optional) -->
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Port Eksternal (Port Akses dari Internet)</label>
+                        <input type="text" id="externalPort" value="8080" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-mikrotik-blue focus:border-mikrotik-blue bg-white dark:bg-gray-800 dark:text-gray-100" placeholder="e.g., 8080">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Port yang akan Anda gunakan saat mengakses dari luar (e.g., YourIP:8080).</p>
+                    </div>
+
+                    <!-- Internal Port -->
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Port Internal Server</label>
+                        <input type="text" id="internalPort" value="80" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-mikrotik-blue focus:border-mikrotik-blue bg-white dark:bg-gray-800 dark:text-gray-100" placeholder="e.g., 80">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Port yang digunakan oleh aplikasi di server lokal (e.g., 80 untuk HTTP).</p>
+                    </div>
+
+                    <!-- Protocol -->
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Protokol</label>
+                        <select id="protocol" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-mikrotik-blue focus:border-mikrotik-blue bg-white dark:bg-gray-800 dark:text-gray-100">
+                            <option value="tcp">TCP</option>
+                            <option value="udp">UDP</option>
+                            <option value="both">Keduanya (TCP & UDP)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <button onclick="generateFirewallScript()" class="mt-6 w-full bg-mikrotik-blue hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition duration-200 shadow-md hover:shadow-lg">
+                    Generate Skrip Firewall & NAT
+                </button>
+            </div>
+            
+            <!-- CONTENT 4: Load Balancing (Hidden by default) -->
+            <div id="content-loadbalance" class="tab-content hidden">
+                <h2 class="text-xl font-bold text-mikrotik-dark dark:text-gray-100 mb-4 border-b dark:border-gray-600 pb-2">Load Balancing Menggunakan Metode PCC (Per Connection Classifier)</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Skrip ini akan mengaktifkan PCC untuk membagi beban traffic ke dua jalur internet (WAN1 dan WAN2).</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                    <!-- WAN Interface 1 -->
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Interface WAN 1</label>
+                        <input type="text" id="wanInterface1" value="ether1" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-mikrotik-blue focus:border-mikrotik-blue bg-white dark:bg-gray-800 dark:text-gray-100" placeholder="e.g., ether1">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Interface jalur Internet Pertama.</p>
+                    </div>
+
+                    <!-- WAN Interface 2 -->
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Interface WAN 2</label>
+                        <input type="text" id="wanInterface2" value="ether2" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-mikrotik-blue focus:border-mikrotik-blue bg-white dark:bg-gray-800 dark:text-gray-100" placeholder="e.g., ether3">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Interface jalur Internet Kedua.</p>
+                    </div>
+
+                    <!-- Gateway 1 IP -->
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">IP Gateway WAN 1</label>
+                        <input type="text" id="gatewayIP1" value="10.10.10.1" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-mikrotik-blue focus:border-mikrotik-blue bg-white dark:bg-gray-800 dark:text-gray-100" placeholder="e.g., 10.10.10.1">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">IP Gateway yang diberikan ISP pertama.</p>
+                    </div>
+
+                    <!-- Gateway 2 IP -->
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">IP Gateway WAN 2</label>
+                        <input type="text" id="gatewayIP2" value="20.20.20.1" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-mikrotik-blue focus:border-mikrotik-blue bg-white dark:bg-gray-800 dark:text-gray-100" placeholder="e.g., 20.20.20.1">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">IP Gateway yang diberikan ISP kedua.</p>
+                    </div>
+                    
+                    <!-- LAN Network -->
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Network Lokal (LAN) Anda</label>
+                        <input type="text" id="lanNetworkLB" value="192.168.88.0/24" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-mikrotik-blue focus:border-mikrotik-blue bg-white dark:bg-gray-800 dark:text-gray-100" placeholder="e.g., 192.168.88.0/24">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Contoh: 192.168.88.0/24. Ini adalah sumber traffic yang akan dibagi.</p>
+                    </div>
+                    
+                </div>
+                
+                <button onclick="generateLoadBalanceScript()" class="mt-6 w-full bg-mikrotik-blue hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition duration-200 shadow-md hover:shadow-lg">
+                    Generate Skrip Load Balancing (PCC)
+                </button>
+            </div>
+            
+            <!-- CONTENT 5: PPPoE Server (Hidden by default) -->
+            <div id="content-ppp" class="tab-content hidden">
+                <h2 class="text-xl font-bold text-mikrotik-dark dark:text-gray-100 mb-4 border-b dark:border-gray-600 pb-2">Konfigurasi PPPoE Server</h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Skrip ini akan membuat server PPPoE untuk mengelola akses klien dengan otentikasi username/password.</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                    <!-- Server Interface -->
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Interface Server (LAN Klien)</label>
+                        <input type="text" id="pppInterface" value="LAN-INTERNAL" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-mikrotik-blue focus:border-mikrotik-blue bg-white dark:bg-gray-800 dark:text-gray-100" placeholder="e.g., LAN-INTERNAL">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Interface tempat klien PPPoE terhubung (misal: bridge-lan).</p>
+                    </div>
+                    
+                    <!-- Service Name -->
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Nama Layanan (Service Name)</label>
+                        <input type="text" id="pppServiceName" value="MyPPPoE" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-mikrotik-blue focus:border-mikrotik-blue bg-white dark:bg-gray-800 dark:text-gray-100" placeholder="e.g., MyPPPoE">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Nama yang muncul saat klien login.</p>
+                    </div>
+
+                    <!-- Server IP (Local Address) -->
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Local Address (IP Server)</label>
+                        <input type="text" id="pppLocalAddress" value="10.5.5.1" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-mikrotik-blue focus:border-mikrotik-blue bg-white dark:bg-gray-800 dark:text-gray-100" placeholder="e.g., 10.5.5.1">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">IP yang akan digunakan server PPPoE (harus berbeda dari LAN).</p>
+                    </div>
+
+                    <!-- IP Pool Range (Remote Address) -->
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Remote Address Pool (Pool IP Klien)</label>
+                        <input type="text" id="pppPoolRange" value="10.5.5.10-10.5.5.254" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-mikrotik-blue focus:border-mikrotik-blue bg-white dark:bg-gray-800 dark:text-gray-100" placeholder="e.g., 10.5.5.10-10.5.5.254">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Rentang IP yang akan diberikan ke klien PPPoE.</p>
+                    </div>
+                    
+                    <!-- Default Max Limit -->
+                    <div class="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Max Limit (Upload/Download) untuk Profile</label>
+                        <input type="text" id="pppMaxLimit" value="1M/2M" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-mikrotik-blue focus:border-mikrotik-blue bg-white dark:bg-gray-800 dark:text-gray-100" placeholder="e.g., 1M/2M">
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Batas bandwidth default (Upload/Download) untuk profile.</p>
+                    </div>
+                    
+                </div>
+                
+                <button onclick="generatePPPScript()" class="mt-6 w-full bg-mikrotik-blue hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition duration-200 shadow-md hover:shadow-lg">
+                    Generate Skrip PPPoE Server
+                </button>
+            </div>
+            
+        </div>
+        
+        <!-- Area Hasil Skrip -->
+        <div class="mt-10 border-t pt-6 border-gray-200 dark:border-gray-700 transition-colors duration-300">
+            <h2 class="text-2xl font-bold text-mikrotik-dark dark:text-gray-100 mb-4 transition-colors duration-300">Hasil Skrip RouterOS</h2>
+            <div id="messageBox" class="hidden p-3 mb-4 text-sm text-red-800 rounded-lg bg-red-50" role="alert"></div>
+
+            <pre id="scriptOutput" class="bg-gray-800 text-green-400 p-4 rounded-lg overflow-x-auto text-sm shadow-inner"></pre>
+            
+            <button id="copyButton" onclick="copyScript()" class="mt-4 w-full md:w-auto px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition duration-200 shadow-md hidden">
+                Salin Skrip ke Clipboard
+            </button>
+        </div>
+
+    </div>
+
+    <script>
+        const outputElement = document.getElementById('scriptOutput');
+        const copyButton = document.getElementById('copyButton');
+        const messageBox = document.getElementById('messageBox');
+        const LAN_IF_NAME = 'LAN-INTERNAL'; // Nama default LAN dari skrip Dasar
+
+        // --- THEME MANAGEMENT ---
+
+        function updateThemeIcon(isDark) {
+            const sunIcon = document.getElementById('sunIcon');
+            const moonIcon = document.getElementById('moonIcon');
+            if (isDark) {
+                sunIcon.classList.remove('hidden');
+                moonIcon.classList.add('hidden');
+            } else {
+                moonIcon.classList.remove('hidden');
+                sunIcon.classList.add('hidden');
+            }
+        }
+
+        function applyTheme(isDark) {
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            }
+            updateThemeIcon(isDark);
+        }
+
+        function toggleTheme() {
+            const isCurrentlyDark = document.documentElement.classList.contains('dark');
+            applyTheme(!isCurrentlyDark);
+        }
+
+        function initializeTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+            // Jika tema tersimpan adalah dark, ATAU tidak ada tema tersimpan namun sistem memilih dark
+            if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+                applyTheme(true);
+            } else {
+                applyTheme(false);
+            }
+        }
+        
+        // --- UTILITY FUNCTIONS ---
+
+        // Fungsi untuk menampilkan pesan error/info
+        function showMessage(message, isError = false) {
+            messageBox.textContent = message;
+            messageBox.className = `p-3 mb-4 text-sm rounded-lg ${isError ? 'text-red-800 bg-red-50' : 'text-blue-800 bg-blue-50'}`;
+            messageBox.classList.remove('hidden');
+        }
+
+        // Fungsi untuk menyembunyikan pesan
+        function hideMessage() {
+            messageBox.classList.add('hidden');
+        }
+
+        // Fungsi untuk mengelola Tampilan Tab
+        function showTab(tabId) {
+            // Sembunyikan semua konten tab
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            
+            // Nonaktifkan semua tombol tab
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Tampilkan konten tab yang dipilih
+            document.getElementById(`content-${tabId}`).classList.remove('hidden');
+            
+            // Aktifkan tombol tab yang dipilih
+            document.getElementById(`tab-${tabId}-btn`).classList.add('active');
+
+            // Clear previous output/message when switching sections
+            outputElement.textContent = 'Skrip yang dihasilkan akan muncul di sini.';
+            copyButton.classList.add('hidden');
+            hideMessage();
+        }
+
+        // Default: Pengaturan Dasar terbuka saat load, dan inisialisasi tema
+        window.onload = () => {
+             initializeTheme();
+             showTab('basic');
+        };
+
+
+        // --- SCRIPT GENERATORS ---
+
+        // Fungsi Generator Skrip Dasar Jaringan
+        function generateBasicScript() {
+            hideMessage();
+            const wanIf = document.getElementById('wanInterface').value.trim();
+            const lanIf = document.getElementById('lanInterface').value.trim();
+            const lanIP = document.getElementById('lanIP').value.trim();
+            const dhcpPool = document.getElementById('dhcpPool').value.trim();
+
+            if (!wanIf || !lanIf || !lanIP || !dhcpPool) {
+                showMessage("Pastikan semua kolom input Pengaturan Dasar terisi.", true);
+                return;
+            }
+
+            const ipParts = lanIP.split('/');
+            const netAddress = ipParts[0];
+            const network = netAddress.substring(0, netAddress.lastIndexOf('.')) + '.0'; 
+
+            const script = `# ==========================================================
+# SKRIP PENGATURAN DASAR MIKROTIK (JALANKAN DULU INI!)
+# Dibuat: ${new Date().toLocaleDateString('id-ID')}
+# ==========================================================
+
+# 1. RESET KONFIGURASI (OPSIONAL - HANYA JIKA MIKROTIK BARU/KOSONG)
+/system reset-configuration no-defaults=yes keep-users=no
+# Setelah reset, router akan reboot. JANGAN PASTE skrip selanjutnya sebelum router menyala kembali.
+
+# 2. MEMBERI NAMA INTERFACE (Gunakan nama standar untuk konsistensi)
+/interface set [find name="${wanIf}"] name=WAN-ISP
+/interface set [find name="${lanIf}"] name=${LAN_IF_NAME}
+
+# 3. MENGATUR CLIENT DHCP DI INTERFACE WAN
+# Mendapatkan IP, Gateway, dan DNS otomatis dari ISP
+/ip dhcp-client add interface=WAN-ISP disabled=no use-peer-dns=yes comment="DHCP Client dari ISP"
+
+# 4. MENGATUR IP ADDRESS DI INTERFACE LAN
+/ip address add address=${lanIP} interface=${LAN_IF_NAME} network=${network} comment="IP Gateway LAN Lokal"
+
+# 5. MENGATUR NAT MASQUERADE (Agar klien LAN bisa akses internet)
+/ip firewall nat add chain=srcnat action=masquerade out-interface=WAN-ISP comment="NAT Masquerade untuk Akses Internet"
+
+# 6. MENGATUR SERVER DHCP DI JARINGAN LAN
+/ip pool add name=dhcp-pool ranges=${dhcpPool} comment="Pool IP untuk Klien DHCP"
+/ip dhcp-server add name=dhcp-lan interface=${LAN_IF_NAME} address-pool=dhcp-pool disabled=no comment="DHCP Server di Jaringan Lokal"
+
+# 7. MENGATUR NETWORK UNTUK DHCP SERVER
+/ip dhcp-server network add address=${network}/24 gateway=${netAddress} dns-server=8.8.8.8,1.1.1.1 comment="DHCP Network untuk LAN"
+
+# 8. MENGATUR NTP CLIENT (Sinkronisasi Waktu)
+/system ntp client set enabled=yes mode=unicast primary-ntp=0.id.pool.ntp.org secondary-ntp=1.id.pool.ntp.org
+
+# 9. MENGGANTI NAMA ROUTER
+/system identity set name=RTR-HOME
+`;
+            outputElement.textContent = script;
+            copyButton.classList.remove('hidden');
+            showMessage("Skrip Pengaturan Dasar berhasil dibuat. Salin dan jalankan di terminal Mikrotik Anda.", false);
+        }
+
+        // Fungsi Generator Skrip Simple Queue
+        function generateQueueScript() {
+            hideMessage();
+            const target = document.getElementById('queueTarget').value.trim();
+            const maxUp = document.getElementById('queueMaxUpload').value.trim();
+            const maxDown = document.getElementById('queueMaxDownload').value.trim();
+            const queueName = document.getElementById('queueName').value.trim();
+
+            if (!target || !maxUp || !maxDown || !queueName) {
+                showMessage("Pastikan semua kolom input Simple Queue terisi.", true);
+                return;
+            }
+
+            const script = `# ==========================================================
+# SKRIP SIMPLE QUEUE UNTUK MANAJEMEN BANDWIDTH
+# Dibuat: ${new Date().toLocaleDateString('id-ID')}
+# ==========================================================
+
+# Menambahkan aturan Simple Queue
+/queue simple add name="${queueName}" target=${target} \
+    max-limit=${maxUp}/${maxDown} \
+    comment="Batasan Bandwidth untuk Jaringan Lokal (${target})"
+
+# Penjelasan:
+# - target: Jaringan atau IP yang akan dikenai pembatasan.
+# - max-limit (target-upload/target-download): Batas maksimum (Max Limit).
+#   Contoh: 5M/10M (Upload 5 Mbps, Download 10 Mbps)
+#
+# PENTING: Skrip di atas adalah implementasi Simple Queue paling dasar.
+`;
+            outputElement.textContent = script;
+            copyButton.classList.remove('hidden');
+            showMessage("Skrip Simple Queue berhasil dibuat. Salin dan jalankan di terminal Mikrotik Anda.", false);
+        }
+
+        // Fungsi Generator Skrip Firewall & Port Forwarding
+        function generateFirewallScript() {
+            hideMessage();
+            const wanIf = document.getElementById('firewallWanInterface').value.trim();
+            const serverIP = document.getElementById('serverIP').value.trim();
+            const externalPort = document.getElementById('externalPort').value.trim();
+            const internalPort = document.getElementById('internalPort').value.trim();
+            const protocol = document.getElementById('protocol').value;
+            const allowedServices = document.getElementById('allowedServices').value.trim();
+            
+            if (!wanIf) {
+                showMessage("Nama Interface WAN untuk Filter harus diisi.", true);
+                return;
+            }
+            
+            let script = `# ==========================================================
+# SKRIP FIREWALL KEAMANAN DASAR (FILTER INPUT) & PORT FORWARDING
+# Dibuat: ${new Date().toLocaleDateString('id-ID')}
+# ==========================================================
+
+/ip firewall filter
+# Drop semua aturan Filter lama (OPSIONAL)
+# remove [find where comment ~ "RULE-"]
+
+# 1. ATURAN FLOW KONEKSI (MUST HAVE)
+# Izinkan koneksi yang sudah mapan (established) dan terkait (related)
+add chain=input action=accept connection-state=established comment="RULE-01_INPUT_Accept_Established"
+add chain=input action=accept connection-state=related comment="RULE-02_INPUT_Accept_Related"
+add chain=forward action=accept connection-state=established comment="RULE-03_FORWARD_Accept_Established"
+add chain=forward action=accept connection-state=related comment="RULE-04_FORWARD_Accept_Related"
+
+# 2. DROP KONEKSI INVALID
+# Blokir paket yang tidak valid
+add chain=input action=drop connection-state=invalid comment="RULE-05_INPUT_Drop_Invalid"
+add chain=forward action=drop connection-state=invalid comment="RULE-06_FORWARD_Drop_Invalid"
+
+# 3. IZINKAN ICMP (PING) dari Internet ke Router
+add chain=input action=accept protocol=icmp in-interface=${wanIf} comment="RULE-07_INPUT_Accept_ICMP_From_WAN"
+
+# 4. IZINKAN AKSES LAYANAN MIKROTIK DARI WAN (Jika ada)
+# (Contoh: Winbox, SSH, Webfig)
+`;
+
+            if (allowedServices) {
+                const ports = allowedServices.split(',').map(p => p.trim()).filter(p => p).join(',');
+                if (ports) {
+                     script += `add chain=input action=accept protocol=tcp dst-port=${ports} in-interface=${wanIf} comment="RULE-08_INPUT_Accept_Allowed_Services_To_Router"\n`;
+                }
+            } else {
+                 script += `# Tidak ada port layanan router yang diizinkan dari WAN.
+`;
+            }
+
+            script += `# 5. DROP SEMUA KONEKSI INPUT LAINNYA DARI WAN
+# Blokir semua koneksi yang ditujukan ke router dari internet (kecuali yang diizinkan di atas)
+add chain=input action=drop in-interface=${wanIf} comment="RULE-09_INPUT_Drop_All_WAN_Traffic_To_Router"
+
+# 6. IZINKAN SEMUA KONEKSI DARI JARINGAN INTERNAL KE ROUTER
+add chain=input action=accept in-interface=${LAN_IF_NAME} comment="RULE-10_INPUT_Accept_Traffic_From_LAN_To_Router"
+
+# 7. IZINKAN SEMUA TRAFIK DARI LAN KE INTERNET (Forwarding)
+add chain=forward action=accept in-interface=${LAN_IF_NAME} comment="RULE-11_FORWARD_Accept_LAN_To_WAN"
+
+
+# ==========================================================
+# SKRIP PORT FORWARDING (DST-NAT)
+# ==========================================================
+/ip firewall nat\n`;
+
+            if (serverIP && externalPort && internalPort) {
+                let protocols = [];
+                if (protocol === 'tcp') protocols.push('tcp');
+                else if (protocol === 'udp') protocols.push('udp');
+                else if (protocol === 'both') protocols = ['tcp', 'udp'];
+
+                protocols.forEach((proto, index) => {
+                    script += `add chain=dstnat action=dst-nat \
+    to-addresses=${serverIP} \
+    to-ports=${internalPort} \
+    protocol=${proto} \
+    dst-port=${externalPort} \
+    in-interface=${wanIf} \
+    comment="NAT-0${index+1}_Forward_${proto.toUpperCase()}_Port_${externalPort}_to_${serverIP}:${internalPort}"\n`;
+                });
+
+                // Tambahkan Hairpin NAT (NAT Loopback) agar user LAN bisa akses server via IP Public/Domain
+                script += `\n# OPTIONAL: HAIPIN NAT / NAT LOOPBACK (Akses server lokal dari LAN menggunakan IP Public)
+# Memungkinkan klien LAN mengakses server lokal melalui IP Public/WAN router (Memerlukan Source NAT)
+/ip firewall nat add chain=srcnat action=masquerade \
+    src-address=${serverIP}/32 \
+    out-interface=${LAN_IF_NAME} \
+    comment="NAT-Loopback_Server_Access_From_LAN"\n`;
+
+                showMessage("Skrip Firewall dan Port Forwarding berhasil dibuat. PASTIKAN semua IP dan nama interface sudah benar sebelum dijalankan!", false);
+            } else {
+                script += `# TIDAK ADA ATURAN PORT FORWARDING yang dibuat karena parameter Port Forwarding tidak lengkap.\n`;
+                showMessage("Skrip Firewall (Security Only) berhasil dibuat. Tambahkan detail Port Forwarding jika Anda memiliki server lokal.", false);
+            }
+
+            outputElement.textContent = script;
+            copyButton.classList.remove('hidden');
+        }
+
+        // Fungsi Generator Skrip Load Balancing (PCC)
+        function generateLoadBalanceScript() {
+            hideMessage();
+            const wanIf1 = document.getElementById('wanInterface1').value.trim();
+            const wanIf2 = document.getElementById('wanInterface2').value.trim();
+            const gwIP1 = document.getElementById('gatewayIP1').value.trim();
+            const gwIP2 = document.getElementById('gatewayIP2').value.trim();
+            const lanNet = document.getElementById('lanNetworkLB').value.trim();
+
+            if (!wanIf1 || !wanIf2 || !gwIP1 || !gwIP2 || !lanNet) {
+                showMessage("Pastikan semua kolom input Load Balancing terisi.", true);
+                return;
+            }
+
+            const script = `# ==========================================================
+# SKRIP LOAD BALANCING PCC (PER CONNECTION CLASSIFIER)
+# Dibuat: ${new Date().toLocaleDateString('id-ID')}
+# PENTING: Pastikan kedua interface WAN (1 & 2) sudah mendapatkan IP, 
+#          dan IP address LAN Anda sudah terpasang.
+# ==========================================================
+
+# 1. MARKING KONEKSI (Mangle)
+/ip firewall mangle
+# Tandai koneksi yang berasal dari LAN
+add chain=prerouting in-interface=${LAN_IF_NAME} action=mark-connection \
+    new-connection-mark=WAN1_conn passthrough=yes \
+    per-connection-classifier=src-address:2/0 comment="PCC-01: Mark Koneksi ke WAN1 (Half Traffic)"
+
+add chain=prerouting in-interface=${LAN_IF_NAME} action=mark-connection \
+    new-connection-mark=WAN2_conn passthrough=yes \
+    per-connection-classifier=src-address:2/1 comment="PCC-02: Mark Koneksi ke WAN2 (Other Half)"
+
+# 2. MARKING ROUTING (Mangle)
+# Tandai routing untuk setiap koneksi
+add chain=prerouting connection-mark=WAN1_conn action=mark-routing \
+    new-routing-mark=to_WAN1 passthrough=no comment="PCC-03: Mark Routing ke WAN1"
+
+add chain=prerouting connection-mark=WAN2_conn action=mark-routing \
+    new-routing-mark=to_WAN2 passthrough=no comment="PCC-04: Mark Routing ke WAN2"
+
+# 3. KONEKSI KE ROUTER ITU SENDIRI (PENTING untuk DNS/NTP)
+# Koneksi yang ditujukan ke Mikrotik (output chain) jangan ikut di-PCC
+add chain=output connection-mark=WAN1_conn action=mark-routing \
+    new-routing-mark=to_WAN1 passthrough=no comment="PCC-05: Output Routing ke WAN1"
+
+add chain=output connection-mark=WAN2_conn action=mark-routing \
+    new-routing-mark=to_WAN2 passthrough=no comment="PCC-06: Output Routing ke WAN2"
+
+# 4. ATURAN ROUTING (IP Route)
+/ip route
+# Hapus default route lama jika ada yang tidak bertanda (Mark)
+# remove [find where dst-address="0.0.0.0/0" routing-mark="" gateway!~"0.0.0.0"]
+
+# Tambahkan route untuk jalur WAN1
+add dst-address=0.0.0.0/0 gateway=${gwIP1} check-gateway=ping \
+    routing-mark=to_WAN1 distance=1 comment="Route ke WAN1"
+
+# Tambahkan route untuk jalur WAN2
+add dst-address=0.0.0.0/0 gateway=${gwIP2} check-gateway=ping \
+    routing-mark=to_WAN2 distance=1 comment="Route ke WAN2"
+
+# 5. ATURAN NAT (Srcnat untuk kedua jalur WAN)
+/ip firewall nat
+# Tambahkan NAT Masquerade untuk kedua jalur WAN (jika belum ada dari skrip dasar)
+add chain=srcnat action=masquerade out-interface=${wanIf1} comment="NAT untuk WAN1"
+add chain=srcnat action=masquerade out-interface=${wanIf2} comment="NAT untuk WAN2"
+`;
+            outputElement.textContent = script;
+            copyButton.classList.remove('hidden');
+            showMessage("Skrip Load Balancing PCC berhasil dibuat. Skrip ini hanya berisi Mangle dan Route. Pastikan Anda sudah mengatur IP Address untuk kedua WAN!", false);
+        }
+
+        // Fungsi Generator Skrip PPPoE Server
+        function generatePPPScript() {
+            hideMessage();
+            const pppIf = document.getElementById('pppInterface').value.trim();
+            const pppServiceName = document.getElementById('pppServiceName').value.trim();
+            const pppLocalAddress = document.getElementById('pppLocalAddress').value.trim();
+            const pppPoolRange = document.getElementById('pppPoolRange').value.trim();
+            const pppMaxLimit = document.getElementById('pppMaxLimit').value.trim();
+
+            if (!pppIf || !pppServiceName || !pppLocalAddress || !pppPoolRange || !pppMaxLimit) {
+                showMessage("Pastikan semua kolom input PPPoE Server terisi.", true);
+                return;
+            }
+
+            const poolName = `${pppServiceName}-pool`;
+            const profileName = `${pppServiceName}-profile`;
+            const uploadLimit = pppMaxLimit.split('/')[0].trim();
+            const downloadLimit = pppMaxLimit.split('/')[1].trim();
+
+            const script = `# ==========================================================
+# SKRIP KONFIGURASI PPPoE SERVER
+# Dibuat: ${new Date().toLocaleDateString('id-ID')}
+# ==========================================================
+
+# 1. BUAT IP POOL UNTUK ALAMAT KLIEN
+/ip pool add name=${poolName} ranges=${pppPoolRange} comment="Pool IP untuk klien PPPoE"
+
+# 2. BUAT PPPoE PROFILE
+/ppp profile add name=${profileName} \
+    local-address=${pppLocalAddress} \
+    remote-address=${poolName} \
+    dns-server=8.8.8.8,1.1.1.1 \
+    only-one=yes \
+    rate-limit=${downloadLimit}/${uploadLimit} \
+    comment="Profile default dengan batas BW ${uploadLimit}/${downloadLimit}"
+
+# 3. BUAT PPPoE SERVER
+/ppp service add name=${pppServiceName} \
+    interface=${pppIf} \
+    service-name=${pppServiceName} \
+    default-profile=${profileName} \
+    authentication=chap,mschap2 \
+    comment="PPPoE Server di interface ${pppIf}"
+
+# 4. TAMBAHKAN CONTOH USER (OPSIONAL)
+/ppp secret add name="user1" \
+    password="pass1" \
+    service=${pppServiceName} \
+    profile=${profileName} \
+    comment="Contoh User PPPoE"
+
+# PENTING: Jangan lupa buat aturan NAT Masquerade untuk network 
+#          PPPoE jika belum ada (misal: /ip firewall nat add chain=srcnat action=masquerade out-interface=WAN-ISP src-address=${pppLocalAddress}/24)
+`;
+            outputElement.textContent = script;
+            copyButton.classList.remove('hidden');
+            showMessage("Skrip PPPoE Server berhasil dibuat. Salin dan jalankan di terminal Mikrotik Anda.", false);
+        }
+
+        // Fungsi untuk menyalin skrip ke clipboard
+        function copyScript() {
+            const textToCopy = outputElement.textContent;
+            
+            // Menggunakan execCommand('copy') karena lebih kompatibel di lingkungan iframe
+            const tempInput = document.createElement('textarea');
+            tempInput.value = textToCopy;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+
+            showMessage("Skrip berhasil disalin ke clipboard!", false);
+            copyButton.textContent = 'Tersalin!';
+            setTimeout(() => {
+                copyButton.textContent = 'Salin Skrip ke Clipboard';
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
