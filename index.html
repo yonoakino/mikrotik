@@ -384,13 +384,16 @@
         <!-- Area Hasil Skrip -->
         <div class="mt-10 border-t pt-6 border-gray-200 dark:border-gray-700 transition-colors duration-300">
             <h2 class="text-2xl font-bold text-mikrotik-dark dark:text-gray-100 mb-4 transition-colors duration-300">Hasil Skrip RouterOS</h2>
+            
+            <!-- TOMBOL COPY DIPINDAH DI SINI -->
+            <button id="copyButton" onclick="copyScript()" class="mb-4 w-full md:w-auto px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition duration-200 shadow-md hidden">
+                Salin Skrip ke Clipboard
+            </button>
+            
             <div id="messageBox" class="hidden p-3 mb-4 text-sm text-red-800 rounded-lg bg-red-50" role="alert"></div>
 
             <pre id="scriptOutput" class="bg-gray-800 text-green-400 p-4 rounded-lg overflow-x-auto text-sm shadow-inner"></pre>
             
-            <button id="copyButton" onclick="copyScript()" class="mt-4 w-full md:w-auto px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition duration-200 shadow-md hidden">
-                Salin Skrip ke Clipboard
-            </button>
         </div>
 
     </div>
@@ -772,8 +775,11 @@ add chain=srcnat action=masquerade out-interface=${wanIf2} comment="NAT untuk WA
 
             const poolName = `${pppServiceName}-pool`;
             const profileName = `${pppServiceName}-profile`;
-            const uploadLimit = pppMaxLimit.split('/')[0].trim();
-            const downloadLimit = pppMaxLimit.split('/')[1].trim();
+            
+            // Memastikan pppMaxLimit memiliki format UPLOAD/DOWNLOAD
+            const limits = pppMaxLimit.split('/');
+            const downloadLimit = limits.length > 1 ? limits[1].trim() : limits[0].trim();
+            const uploadLimit = limits[0].trim();
 
             const script = `# ==========================================================
 # SKRIP KONFIGURASI PPPoE SERVER
